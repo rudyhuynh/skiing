@@ -4,7 +4,7 @@ import { logOneLine } from "./logUtils";
 const max = R.reduce(R.max, -Infinity);
 
 export function parseToSkiMap(responseText) {
-  const values = responseText.split(/[\s]/g).map(value => parseInt(value, 10));
+  const values = responseText.split(/[\s]+/g).map(value => parseInt(value, 10));
 
   return {
     x: values[0],
