@@ -1,13 +1,6 @@
 import * as skiingHelper from "./skiingHelper";
-import R from "ramda";
-import {
-  x,
-  y,
-  skiMap,
-  rootIndices,
-  initializedDag,
-  filledDag
-} from "./__testdaga__/inputs";
+//import R from "ramda";
+import { x, y, skiMap, rootIndices } from "./__testdaga__/inputs";
 
 test("getNewsSurroundings()", () => {
   //top left
@@ -71,44 +64,28 @@ test("getRootIndices()", () => {
   expect(skiingHelper.getRootIndices(skiMap, x, y)).toEqual(rootIndices);
 });
 
-test("initDag()", () => {
-  expect(skiingHelper.initDag(rootIndices)).toEqual(initializedDag);
-});
-
 test("fillDagFromSkiMap()", () => {
-  const dag = R.clone(initializedDag);
+  const aRootIndex = 1;
+  const dag = { [aRootIndex]: [] };
+  const expectedDag = {
+    1: [0, 2, 5],
+    0: [4],
+    2: [3],
+    5: [4, 9],
+    4: [],
+    3: [],
+    9: [10],
+    10: [14],
+    14: []
+  };
 
-  Object.keys(dag).forEach(index => {
-    skiingHelper.fillDagFromSkiMap(dag, index, skiMap, x, y);
-  });
+  skiingHelper.fillDagFromSkiMap(dag, aRootIndex, skiMap, x, y);
 
-  expect(dag).toMatchSnapshot();
-
-  Object.keys(dag).forEach(_index => {
-    const index = parseInt(_index, 10);
-    const fromNodeElevation = skiMap[index];
-    expect(!!fromNodeElevation || fromNodeElevation === 0).toBe(true);
-    if (dag[index].length) {
-      dag[index].forEach(index => {
-        const toNodeElevation = skiMap[index];
-        expect(!!toNodeElevation || toNodeElevation === 0).toBe(true);
-        expect(fromNodeElevation > toNodeElevation).toBe(true);
-      });
-    }
-  });
+  expect(dag).toEqual(expectedDag);
 });
 
 describe("getTopologicallySortedOrder()", () => {
-  test("getTopologicallySortedOrder()", () => {
-    const topologicallySortedOrder = skiingHelper.getTopologicallySortedOrder(
-      filledDag,
-      rootIndices
-    );
-
-    expect(topologicallySortedOrder).toMatchSnapshot();
-  });
-
-  test("getTopologicallySortedOrder([1], ...)", () => {
+  test("getTopologicallySortedOrder(dag, 1)", () => {
     const dag = {
       1: [0, 2, 5],
       0: [4],
@@ -120,73 +97,105 @@ describe("getTopologicallySortedOrder()", () => {
       10: [14],
       14: []
     };
+    const expectedTopologySortedOrder = [1, 5, 9, 10, 14, 2, 3, 0, 4];
+
     const topologicallySortedOrder = skiingHelper.getTopologicallySortedOrder(
       dag,
-      [1]
+      1
     );
-    expect(topologicallySortedOrder).toMatchSnapshot();
+    expect(topologicallySortedOrder).toEqual(expectedTopologySortedOrder);
   });
 });
 
-describe("findMaxDistanceAndPaths()", () => {
-  test("findMaxDistanceAndPaths(1, ...)", () => {
-    const topologicallySortedOrder = skiingHelper.getTopologicallySortedOrder(
-      filledDag,
-      [1, 6, 8, 13, 15]
-    );
+describe("findMaxDistanceAndPathsOfRootIndex()", () => {
+  test("findMaxDistanceAndPathsOfRootIndex(1, ...)", () => {
+    const dag = {
+      1: [0, 2, 5],
+      0: [4],
+      2: [3],
+      5: [4, 9],
+      4: [],
+      3: [],
+      9: [10],
+      10: [14],
+      14: []
+    };
+    const tso = [1, 5, 9, 10, 14, 2, 3, 0, 4];
 
     expect(
-      skiingHelper.findMaxDistanceAndPaths(
-        1,
-        filledDag,
-        topologicallySortedOrder,
-        skiMap
-      )
-    ).toMatchSnapshot();
-  });
-
-  test("findMaxDistanceAndPaths(6, ...)", () => {
-    const topologicallySortedOrder = skiingHelper.getTopologicallySortedOrder(
-      filledDag,
-      [1, 6, 8, 13, 15]
-    );
-
-    expect(
-      skiingHelper.findMaxDistanceAndPaths(
-        6,
-        filledDag,
-        topologicallySortedOrder,
-        skiMap
-      )
+      skiingHelper.findMaxDistanceAndPathsOfRootIndex(1, dag, tso)
     ).toMatchSnapshot();
   });
 });
 
 test("getFullPath()", () => {
-  const fromNodes = [
-    undefined,
-    undefined,
-    6,
-    2,
-    5,
-    6,
-    undefined,
-    6,
-    undefined,
-    5,
-    9,
-    undefined,
-    undefined,
-    undefined,
-    10,
-    undefined
-  ];
-  const fullPathOfIndex6 = skiingHelper.getFullPath(14, fromNodes, 6);
-  expect(fullPathOfIndex6).toEqual([6, 5, 9, 10, 14]);
+  const startNodeIndex = 1;
+  const fromNodes = {
+    1: null,
+    5: 1,
+    9: 5,
+    10: 9,
+    14: 10,
+    2: null,
+    3: null,
+    0: null,
+    4: null
+  };
+  const fullPathOfIndex1 = skiingHelper.getFullPath(
+    14,
+    fromNodes,
+    startNodeIndex
+  );
+  expect(fullPathOfIndex1).toEqual([1, 5, 9, 10, 14]);
+});
+
+test("getFullPaths()", () => {
+  const fromNodes = {
+    1: null,
+    5: 1,
+    9: 5,
+    10: 9,
+    14: 10,
+    2: null,
+    3: null,
+    0: null,
+    4: null
+  };
+  const expected = {
+    1: [],
+    5: [1, 5],
+    9: [1, 5, 9],
+    10: [1, 5, 9, 10],
+    14: [1, 5, 9, 10, 14],
+    2: [],
+    3: [],
+    0: [],
+    4: []
+  };
+  const fullPaths = skiingHelper.getFullPaths(fromNodes, 1);
+  expect(fullPaths).toEqual(expected);
 });
 
 test("getLongestSteepestPath()", () => {
   expect(
     skiingHelper.getLongestSteepestPath({ skiMap, x, y })
   ).toMatchSnapshot();
+});
+
+test("getSteepestPaths()", () => {
+  const longestPaths = [
+    { maxDistance: 4, path: [1, 5, 9, 10, 14] },
+    { maxDistance: 4, path: [6, 5, 9, 10, 14] }
+  ];
+  const expected = [
+    {
+      maxDistance: 4,
+      drop: 8,
+      pathLength: 5,
+      pathIndices: [6, 5, 9, 10, 14],
+      pathValues: [9, 5, 3, 2, 1]
+    }
+  ];
+
+  expect(skiingHelper.getSteepestPaths(longestPaths, skiMap)).toEqual(expected);
 });

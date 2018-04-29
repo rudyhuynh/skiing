@@ -1,80 +1,11 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`fillDagFromSkiMap() 1`] = `
-Object {
-  "0": Array [
-    4,
-  ],
-  "1": Array [
-    0,
-    2,
-    5,
-  ],
-  "10": Array [
-    14,
-  ],
-  "11": Array [
-    7,
-    10,
-  ],
-  "12": Array [],
-  "13": Array [
-    9,
-    14,
-  ],
-  "14": Array [],
-  "15": Array [
-    11,
-    14,
-  ],
-  "2": Array [
-    3,
-  ],
-  "3": Array [],
-  "4": Array [],
-  "5": Array [
-    4,
-    9,
-  ],
-  "6": Array [
-    2,
-    5,
-    7,
-    10,
-  ],
-  "7": Array [],
-  "8": Array [
-    4,
-    9,
-    12,
-  ],
-  "9": Array [
-    10,
-  ],
-}
-`;
-
-exports[`findMaxDistanceAndPaths() findMaxDistanceAndPaths(1, ...) 1`] = `
+exports[`findMaxDistanceAndPathsOfRootIndex() findMaxDistanceAndPathsOfRootIndex(1, ...) 1`] = `
 Object {
   "maxDistance": 4,
   "paths": Array [
     Array [
       1,
-      5,
-      9,
-      10,
-      14,
-    ],
-  ],
-}
-`;
-
-exports[`findMaxDistanceAndPaths() findMaxDistanceAndPaths(6, ...) 1`] = `
-Object {
-  "maxDistance": 4,
-  "paths": Array [
-    Array [
-      6,
       5,
       9,
       10,
@@ -88,7 +19,8 @@ exports[`getLongestSteepestPath() 1`] = `
 Array [
   Object {
     "drop": 8,
-    "pathIndex": Array [
+    "maxDistance": 4,
+    "pathIndices": Array [
       6,
       5,
       9,
@@ -96,7 +28,7 @@ Array [
       14,
     ],
     "pathLength": 5,
-    "pathValue": Array [
+    "pathValues": Array [
       9,
       5,
       3,
@@ -104,40 +36,5 @@ Array [
       1,
     ],
   },
-]
-`;
-
-exports[`getTopologicallySortedOrder() getTopologicallySortedOrder() 1`] = `
-Array [
-  15,
-  11,
-  13,
-  8,
-  12,
-  6,
-  7,
-  1,
-  5,
-  9,
-  10,
-  14,
-  2,
-  3,
-  0,
-  4,
-]
-`;
-
-exports[`getTopologicallySortedOrder() getTopologicallySortedOrder([1], ...) 1`] = `
-Array [
-  1,
-  5,
-  9,
-  10,
-  14,
-  2,
-  3,
-  0,
-  4,
 ]
 `;

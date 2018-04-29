@@ -1,4 +1,5 @@
 import R from "ramda";
+import { logOneLine } from "./logUtils";
 
 const max = R.reduce(R.max, -Infinity);
 
@@ -22,49 +23,24 @@ export function getLongestSteepestPath({ x, y, skiMap }) {
   // find the roots, which have no lower elevation in surroundings
   const rootIndices = getRootIndices(skiMap, x, y);
 
-  console.log(`Found ${rootIndices.length} roots`);
+  console.log(
+    `Found ${rootIndices.length} root. Finding longest paths in each roots...`
+  );
 
-  console.log("Initiating a Directed Acyclic Graph from roots...");
-
-  // initiate a Directed Acyclic Graph (DAG) with roots only
-  const dag = initDag(rootIndices);
-
-  console.log("DAG initiated:", dag);
-  console.log("Filling DAG...");
-
-  // fill the graph
-  Object.keys(dag).forEach((rootIndex, i) => {
-    console.log(`\tFilling dag from root ${i}/${rootIndices.length}`);
-    fillDagFromSkiMap(dag, rootIndex, skiMap, x, y);
-  });
-
-  console.log("1 root of Directed Acyclic Graph", dag[rootIndices[0]]);
-
-  // Topological Sorting
-  const topologicallySortedOrder = getTopologicallySortedOrder(
-    dag,
-    rootIndices
+  const longestPathsInEachRoots = rootIndices.map(
+    getLongestPathsFromRoot(skiMap, x, y)
   );
 
   console.log(
-    "first 100 Topology Sorted Order",
-    topologicallySortedOrder.slice(0, 100)
+    `Found ${longestPathsInEachRoots.length} longest paths in ${
+      rootIndices.length
+    } roots`
   );
 
-  // find longest path from each root
-  const longestPathsInEachRoots = getLongestPathsByEachRoots(
-    rootIndices,
-    dag,
-    topologicallySortedOrder,
-    skiMap
-  );
+  const longestPaths = getLongestPathsOfAllRoots(longestPathsInEachRoots);
 
-  console.log("longest paths in each roots", longestPathsInEachRoots);
-
-  const longestPaths = getMaxDistanceFromRoots(longestPathsInEachRoots);
-
+  console.log(`Found ${longestPaths.length} longest paths`);
   console.log("longest paths", longestPaths);
-
   const steepestPaths = getSteepestPaths(longestPaths, skiMap);
   // find steepest path from longest paths
 
@@ -73,82 +49,72 @@ export function getLongestSteepestPath({ x, y, skiMap }) {
   return steepestPaths;
 }
 
-/**
- * 
- * longestPaths = [ {
-        "fromNodeIndex": 0,
-        "toNodeIndex": 5,
-        "maxDist": 5,
-        "path": [
-          0,
-          2,
-          3,
-          4,
-          5
-        ]
-      }]
- */
+const getLongestPathsFromRoot = (skiMap, x, y) => (
+  rootIndex,
+  _,
+  rootIndices
+) => {
+  logOneLine(
+    `${_ + 1}/${rootIndices.length} (${Math.round(
+      (_ + 1) / rootIndices.length * 100
+    )}%)`
+  );
+  const dag = { [rootIndex]: [] };
+
+  fillDagFromSkiMap(dag, rootIndex, skiMap, x, y);
+
+  const topologicallySortedOrder = getTopologicallySortedOrder(dag, rootIndex);
+
+  const maxDistanceAndPaths = findMaxDistanceAndPathsOfRootIndex(
+    rootIndex,
+    dag,
+    topologicallySortedOrder
+  );
+
+  return maxDistanceAndPaths;
+};
+
 export function getSteepestPaths(longestPaths, skiMap) {
-  const paths = R.chain(path => {
-    return path.paths;
-  }, longestPaths).map(path => {
+  const paths = longestPaths.map(({ maxDistance, path }) => {
     return {
-      steep: skiMap[path[0]] - skiMap[path[path.length - 1]],
-      path
+      drop: skiMap[path[0]] - skiMap[path[path.length - 1]],
+      path,
+      maxDistance
     };
   });
 
-  const maxSteep = max(paths.map(path => path.steep));
+  const maxDrop = max(paths.map(path => path.drop));
   return paths
-    .filter(path => {
-      return path.steep === maxSteep;
+    .filter(({ drop }) => {
+      return drop === maxDrop;
     })
-    .map(path => {
+    .map(({ drop, maxDistance, path }) => {
       return {
-        drop: path.steep,
-        pathLength: path.path.length,
-        pathIndex: path.path,
-        pathValue: path.path.map(pathIndex => skiMap[pathIndex])
+        drop,
+        maxDistance,
+        pathLength: path.length,
+        pathIndices: path,
+        pathValues: path.map(pathIndex => skiMap[pathIndex])
       };
     });
 }
 
-export function getMaxDistanceFromRoots(longestPathsByEachRoots) {
+export function getLongestPathsOfAllRoots(longestPathsByEachRoots) {
   const maxDistance = max(
     longestPathsByEachRoots.map(item => item.maxDistance)
   );
-  return longestPathsByEachRoots.filter(
+  const pathsWithMaxDistance = longestPathsByEachRoots.filter(
     item => item.maxDistance === maxDistance
   );
-}
-
-/**
- *
- * @param {*} rootIndices
- * @param {*} dag
- * @param {*} topologicallySortedOrder
- */
-export function getLongestPathsByEachRoots(
-  rootIndices,
-  dag,
-  topologicallySortedOrder,
-  skiMap
-) {
-  let i = 0;
-  return R.chain(rootIndex => {
-    console.log(
-      `${i++}/${rootIndices.length -
-        1}. Finding max distance and paths for skiMap[${rootIndex}]=${
-        skiMap[rootIndex]
-      }`
-    );
-    return findMaxDistanceAndPaths(
-      rootIndex,
-      dag,
-      topologicallySortedOrder,
-      skiMap
-    );
-  }, rootIndices);
+  //flatten the paths
+  return R.chain(maxDistancePaths => {
+    return maxDistancePaths.paths.map(path => {
+      return {
+        maxDistance: maxDistancePaths.maxDistance,
+        path
+      };
+    });
+  }, pathsWithMaxDistance);
 }
 
 /**
@@ -164,32 +130,30 @@ export function getRootIndices(skiMap, x, y) {
 }
 
 /**
- * Initiate a Directed Acyclic Graph (DAG) with roots only
- * @param Array rootIndices
- */
-export function initDag(rootIndices) {
-  return rootIndices.reduce((acc, val, i) => {
-    console.log(`\t[initDag]Handling root indices ${i}/${rootIndices.length}`);
-    return Object.assign({}, acc, { [val]: [] });
-  }, {});
-}
-
-/**
  * https://www.geeksforgeeks.org/find-longest-path-directed-acyclic-graph/
  */
-
-export function findMaxDistanceAndPaths(
+export function findMaxDistanceAndPathsOfRootIndex(
   nodeIndex,
   dag,
-  topologicallySortedOrder,
-  skiMap,
+  tso,
   getEdge
 ) {
-  const distances = skiMap.map(
-    (_, skiMapNodeIndex) => (skiMapNodeIndex === nodeIndex ? 0 : -Infinity)
+  // TODO -
+  const distances = tso.reduce(
+    (acc, skiMapNodeIndex) =>
+      Object.assign({}, acc, {
+        [skiMapNodeIndex]: skiMapNodeIndex === nodeIndex ? 0 : -Infinity
+      }),
+    {}
   );
-  let fromNodes = skiMap.map((_, skiMapNodeIndex) => undefined);
-  topologicallySortedOrder.forEach(nodeIndex => {
+  let fromNodes = tso.reduce(
+    (acc, skiMapNodeIndex) =>
+      Object.assign({}, acc, {
+        [skiMapNodeIndex]: null
+      }),
+    {}
+  );
+  tso.forEach(nodeIndex => {
     dag[nodeIndex].forEach(adjNodeIndex => {
       const nextDist =
         distances[nodeIndex] + (getEdge ? getEdge(nodeIndex, adjNodeIndex) : 1);
@@ -200,11 +164,14 @@ export function findMaxDistanceAndPaths(
     });
   });
 
-  const maxDistance = max(distances);
+  const maxDistance = max(Object.values(distances));
+
   const paths = getFullPaths(fromNodes, nodeIndex);
-  const pathsOfMaxDistance = paths
-    .map((path, index) => {
-      if (distances[index] === maxDistance) return path;
+
+  const pathsOfMaxDistance = Object.keys(paths)
+    .map(_index => {
+      const index = parseInt(_index, 10);
+      if (distances[index] === maxDistance) return paths[index];
       return null;
     })
     .filter(path => path);
@@ -213,7 +180,6 @@ export function findMaxDistanceAndPaths(
     maxDistance,
     paths: pathsOfMaxDistance
   };
-  console.log("\tfound max distance and path:", result);
   return result;
 }
 
@@ -229,32 +195,44 @@ export function getFullPath(toNodeIndex, fromNodes, startNodeIndex) {
 }
 
 export function getFullPaths(fromNodes, startNodeIndex) {
-  return fromNodes.map((fromNode, toNodeIndex) => {
-    const fullPath = getFullPath(toNodeIndex, fromNodes, startNodeIndex);
-    return fullPath;
-  });
+  return (
+    Object.keys(fromNodes)
+      .map(currentNodeIndex => {
+        // get full path from 'startNodeIndex' to current node
+        const fullPath = getFullPath(
+          parseInt(currentNodeIndex, 10),
+          fromNodes,
+          startNodeIndex
+        );
+        return [currentNodeIndex, fullPath];
+      })
+      // combine array into an object:
+      .reduce(
+        (acc, val) =>
+          Object.assign({}, acc, {
+            [val[0]]: val[1]
+          }),
+        {}
+      )
+  );
 }
 
 /**
  * Kahn's algorithm
+ * Returns an array of indices
  */
-export function getTopologicallySortedOrder(_dag, rootIndices) {
+export function getTopologicallySortedOrder(_dag, rootIndex) {
   const dag = Object.assign({}, _dag);
   const L = [];
-  const S = [...rootIndices];
+  const S = [rootIndex];
 
   while (S.length) {
-    console.log(`[getTSO()]S.length=${S.length}, L.length=${L.length}/1000000`);
+    //logOneLine(`[getTSO()]S.length=${S.length}, L.length=${L.length}`);
     const n = S.pop();
     L.push(n);
     const adjacentNodeIndices = dag[n];
     dag[n] = [];
     adjacentNodeIndices.forEach((nodeIndex, i) => {
-      console.log(
-        `\t[getTSO()]Handling adjacent node index ${i}/${
-          adjacentNodeIndices.length
-        }`
-      );
       if (!hasIncommingEdgeInDag(nodeIndex, dag)) {
         S.push(nodeIndex);
       }
